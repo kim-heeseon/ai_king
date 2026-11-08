@@ -71,6 +71,23 @@
       .answer { font-size:17px; padding:14px; }
     }
   </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = { apiKey: "AIzaSyBaVhHITFeyIYXnMjs7B2WZoHsKU1ksGuU",
+  authDomain: "aiking-98e1f.firebaseapp.com",
+  projectId: "aiking-98e1f",
+  storageBucket: "aiking-98e1f.firebasestorage.app",
+  messagingSenderId: "666257146140",
+  appId: "1:666257146140:web:eae7948e881c208cba7ad9",
+};
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+</script>
 </head>
 <body>
   <main class="app">
@@ -83,6 +100,15 @@
     <section id="start" class="panel start">
       <div class="big-emoji">🚀</div>
       <h2>탐험을 시작해 볼까요?</h2>
+<label for="studentCode">학생 번호</label>
+<input
+  type="text"
+  id="studentCode"
+  placeholder="학생 번호를 입력하세요"
+  maxlength="20"
+  required
+  style="display:block; width:100%; padding:14px; margin:12px 0; font-size:18px; border:1px solid #ccc; border-radius:10px;"
+>
       <p>AI와 컴퓨터에 관한 문제 5개를 풀어요.<br>답을 고르면 바로 설명을 확인할 수 있어요.</p>
       <button class="primary" onclick="startQuiz()">탐험 시작!</button>
     </section>
@@ -148,8 +174,22 @@ const questions = [
 let current = 0;
 let score = 0;
 let answered = false;
-
-function startQuiz() {
+let studentAnswers = [ ];
+let studentCode = "";
+async function startQuiz() {
+studentCode = document.getElementById("studentCode").value.trim();
+studentAnswers = [];
+  if (!studentCode) {
+    alert("학생 번호를 입력해 주세요!");
+    return;
+  }
+ try {
+    await auth.signInAnonymously();
+  } catch (error) {
+    alert("인증에 실패했어요. 다시 시도해 주세요.");
+    console.error(error);
+    return;
+  }
   current = 0; score = 0;
   document.getElementById("start").classList.add("hidden");
   document.getElementById("result").classList.add("hidden");
@@ -180,6 +220,10 @@ function showQuestion() {
 function chooseAnswer(index) {
   if (answered) return;
   answered = true;
+studentAnswers[current] = {
+  selected: index,
+  correct: index === questions[current].answer
+};
   const item = questions[current];
   const buttons = [...document.querySelectorAll(".answer")];
   buttons.forEach((button, i) => {
@@ -215,6 +259,24 @@ function showResult() {
     score === 5 ? "완벽해요! AI·SW 탐험 실력이 정말 멋져요!" :
     score >= 3 ? "잘했어요! 다시 도전하면 더 잘할 수 있어요." :
     "도전한 것만으로도 멋져요! 다시 풀며 하나씩 알아가요.";
+  saveQuizResult();
+}
+async function saveQuizResult() {
+  try {
+    await db.collection("quiz_results").add({
+      studentCode: studentCode,
+      score: score,
+      totalQuestions: questions.length,
+      answers: studentAnswers,
+      uid: auth.currentUser.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log("퀴즈 결과 저장 성공");
+  } catch (error) {
+    console.error("퀴즈 결과 저장 실패:", error);
+    alert("결과 저장에 실패했어요. 선생님께 알려 주세요.");
+  }
 }
 function restartQuiz() { startQuiz(); }
 </script>
